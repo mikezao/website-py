@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browse Tags</title>
+    <style>
+        /* Basic Dark Mode Styles (copied from index.html for consistency) */
+        body {
+            font-family: sans-serif; margin: 0; padding: 20px;
+            background-color: #1f1f1f; color: #e0e0e0;
+        }
+        h1 {
+            text-align: center; color: #f1f1f1; margin-top: 0; margin-bottom: 25px;
+            border-bottom: 1px solid #444; padding-bottom: 15px;
+        }
+        a { color: #4dabf7; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* Tag Button Styles */
+        .tag-button-container {
+            text-align: center; /* Center the buttons */
+            padding: 10px;
+        }
+        .tag-button {
+            display: inline-block; /* Allow wrapping */
+            background-color: #4a4a4a;
+            color: #e0e0e0;
+            padding: 8px 15px;
+            margin: 6px 6px;
+            border-radius: 15px; /* More rounded */
+            font-size: 0.95em;
+            text-decoration: none;
+            border: 1px solid #555;
+            transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+            white-space: nowrap;
+        }
+        .tag-button:hover {
+            background-color: #007bff;
+            color: #fff;
+            border-color: #007bff;
+            text-decoration: none;
+        }
+        .no-tags-message {
+             text-align: center; color: #888; margin-top: 40px;
+        }
+        .back-link-container {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #444;
+        }
+        .back-link {
+             font-size: 0.9em;
+             color: #ccc;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Available Tags</h1>
+
+    <div class="tag-button-container">
+        {% if tags %}
+            {% for tag in tags %}
+                 {# Link points back to index, filtering by this tag #}
+                <a href="{{ url_for('index', tag=tag) }}" class="tag-button">
+                    {{ tag }}
+                </a>
+            {% endfor %}
+        {% else %}
+            <p class="no-tags-message">No tags found. Please check or create your <code>tags.json</code> file.</p>
+        {% endif %}
+    </div>
+
+    <div class="back-link-container">
+        <a href="{{ url_for('index') }}" class="back-link">&laquo; Back to PDF Grid</a>
+    </div>
+
+</body>
+</html>

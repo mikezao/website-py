@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View PDF - {{ filename }}</title>
+    <style>
+        /* --- DARK MODE STYLES (Same as before) --- */
+        body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; background-color: #1f1f1f; }
+        .pdf-viewer { flex-grow: 1; border: none; }
+        .back-link { display: block; padding: 10px 15px; background-color: #3a3a3a; color: #e0e0e0; text-align: center; text-decoration: none; font-family: sans-serif; font-size: 0.9em; border-bottom: 1px solid #555; }
+        .back-link:hover { background-color: #4a4a4a; }
+    </style>
+</head>
+<body>
+    {# We might want to preserve search state here later, but simple link for now #}
+    <a href="{{ url_for('index') }}" class="back-link">&laquo; Back to Grid View</a>
+
+    <embed
+        src="{{ url_for('serve_pdf', folder_id=folder_id, filename=filename) }}"
+        type="application/pdf"
+        class="pdf-viewer"
+    />
+    </body>
+</html>

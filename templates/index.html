@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Viewer</title>
+    <style>
+        /* --- Base, Dark Mode, Layout, Sidemenu, Search Styles (Keep from previous version) --- */
+        body { font-family: sans-serif; margin: 0; padding: 0; background-color: #1f1f1f; color: #e0e0e0; display: flex; transition: padding-left 0.3s ease; }
+        .sidemenu { width: 180px; background-color: #2a2a2a; height: 100vh; border-right: 1px solid #444; position: fixed; left: 0; top: 0; overflow-x: hidden; overflow-y: auto; transition: width 0.3s ease, padding 0.3s ease; padding-top: 50px; box-sizing: border-box; z-index: 10; }
+        .sidemenu.collapsed { width: 0; padding-left: 0; padding-right: 0; border-right: none; }
+        .sidemenu.collapsed h3, .sidemenu.collapsed ul { display: none; }
+        .sidemenu h3 { color: #f1f1f1; text-align: center; margin-bottom: 20px; font-size: 1.1em; padding-bottom: 10px; border-bottom: 1px solid #444; margin-top: 0; padding-left: 10px; padding-right: 10px; white-space: nowrap; }
+        .sidemenu ul { list-style: none; padding: 0; margin: 0; }
+        .sidemenu li a { display: block; padding: 12px 20px; color: #ccc; text-decoration: none; font-size: 0.95em; transition: background-color 0.2s, color 0.2s; border-left: 3px solid transparent; white-space: nowrap; }
+        .sidemenu li a:hover { background-color: #3a3a3a; color: #fff; }
+        .sidemenu li a.active { background-color: #3f3f3f; color: #fff; font-weight: bold; border-left: 3px solid #007bff; }
+        #menu-toggle-btn { position: fixed; top: 10px; left: 10px; z-index: 20; background-color: #444; color: #eee; border: none; padding: 5px 10px; cursor: pointer; font-size: 1.2em; border-radius: 3px; transition: left 0.3s ease; }
+        body.sidemenu-collapsed #menu-toggle-btn { /* Optional positioning adjustment */ }
+        .main-content { margin-left: 180px; padding: 20px; width: calc(100% - 180px); box-sizing: border-box; transition: margin-left 0.3s ease, width 0.3s ease; }
+        body.sidemenu-collapsed .main-content { margin-left: 0; width: 100%; }
+        h1 { text-align: center; color: #f1f1f1; margin-top: 0; margin-bottom: 10px;}
+        .search-container { text-align: center; padding: 10px 0; margin-bottom: 5px; /* Reduced margin */ border-bottom: 1px solid #444;}
+        .search-container form { margin-bottom: 5px;}
+        .search-container input[type="text"] { padding: 8px 12px; width: 50%; max-width: 350px; border: 1px solid #555; background-color: #333; color: #e0e0e0; border-radius: 4px; font-size: 0.9em; }
+        .search-container button { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em; margin-left: 5px; }
+        .search-container button:hover { background-color: #0056b3; }
+
+        /* --- NEW Active Filter Display Styles --- */
+        .active-filters {
+            text-align: center;
+            padding: 5px 0 15px 0; /* Reduced padding */
+            font-size: 0.9em;
+            color: #aaa;
+        }
+        .active-filters span {
+            background-color: #444;
+            padding: 3px 8px;
+            border-radius: 10px;
+            margin-right: 5px;
+        }
+        .active-filters a { /* Style for Clear link */
+            color: #ff6b6b; /* Light red/coral */
+            text-decoration: none;
+            margin-left: 5px;
+            border: 1px solid #ff6b6b;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+         .active-filters a:hover {
+            background-color: #ff6b6b;
+            color: #fff;
+        }
+        /* --- End Active Filter Styles --- */
+
+
+        /* --- PDF Grid and Item Styles --- */
+        .pdf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 25px; padding: 10px 0; /* Reduced padding */ }
+        .pdf-item { background-color: #333; border: 1px solid #555; border-radius: 5px; padding: 10px; text-align: center; box-shadow: 2px 2px 5px rgba(0,0,0,0.4); transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; overflow: hidden; display: flex; flex-direction: column; } /* Flex column */
+        .pdf-item:hover { transform: scale(1.03); box-shadow: 4px 4px 8px rgba(0,0,0,0.5); border-color: #777; }
+        .pdf-item a.pdf-link { text-decoration: none; color: #e0e0e0; display: block; flex-grow: 1; /* Allow link area to grow */ display: flex; flex-direction: column; }
+        .pdf-item img { max-width: 100%; height: 200px; object-fit: contain; display: block; margin: 0 auto 10px auto; background-color: #444; border-radius: 3px; }
+        .pdf-item .filename { display: block; font-size: 0.9em; word-wrap: break-word; line-height: 1.2; max-height: 2.4em; overflow: hidden; color: #ccc; margin-bottom: 8px; } /* Added margin */
+
+        /* --- NEW Tag Display Styles --- */
+        .pdf-tags {
+            margin-top: auto; /* Push tags to bottom */
+            padding-top: 8px; /* Space above tags */
+            border-top: 1px solid #444; /* Separator line */
+            line-height: 1.5; /* Spacing for wrapped tags */
+        }
+        .pdf-tags .tag-link {
+            display: inline-block;
+            background-color: #555;
+            color: #ddd;
+            padding: 2px 7px;
+            margin: 3px 3px; /* Add vertical margin */
+            border-radius: 3px;
+            font-size: 0.75em;
+            text-decoration: none;
+            transition: background-color 0.2s;
+            white-space: nowrap; /* Prevent tags themselves from wrapping */
+        }
+        .pdf-tags .tag-link:hover {
+            background-color: #007bff;
+            color: #fff;
+        }
+        /* --- End Tag Styles --- */
+
+        .placeholder-thumb { width: 100%; height: 200px; background-color: #444; display: flex; align-items: center; justify-content: center; color: #888; font-size: 0.8em; margin-bottom: 10px; border-radius: 3px; flex-shrink: 0; /* Prevent shrinking */ }
+        .empty-message { grid-column: 1 / -1; text-align: center; color: #888; margin-top: 40px; }
+        .pagination { text-align: center; padding: 20px 0; margin-top: 20px; border-top: 1px solid #444; }
+        .pagination a, .pagination span { display: inline-block; padding: 8px 16px; margin: 0 4px; border: 1px solid #555; background-color: #3a3a3a; color: #4dabf7; text-decoration: none; border-radius: 4px; transition: background-color 0.2s; white-space: nowrap; }
+        .pagination a:hover { background-color: #4a4a4a; border-color: #777; }
+        .pagination .current-page { background-color: #007bff; color: white; border-color: #007bff; font-weight: bold; }
+        .pagination .disabled { color: #777; border-color: #444; pointer-events: none; background-color: #2f2f2f; }
+    </style>
+</head>
+<body id="body"> <button id="menu-toggle-btn" title="Toggle Menu">&#9776;</button>
+
+    <nav class="sidemenu" id="sidemenu"> <h3>Folders</h3>
+        <ul>
+            <li>
+                <a href="{{ url_for('index', q=search_query, tag=tag_filter) }}" class="{{ 'active' if not folder_filter else '' }}">All PDFs</a>
+            </li>
+            <li>
+                <a href="{{ url_for('index', folder='source_0', q=search_query, tag=tag_filter) }}" class="{{ 'active' if folder_filter == 'source_0' else '' }}">Long PDFs</a>
+            </li>
+            <li>
+                <a href="{{ url_for('index', folder='source_1', q=search_query, tag=tag_filter) }}" class="{{ 'active' if folder_filter == 'source_1' else '' }}">Short PDFs</a>
+            </li>
+            <li>
+                <a href="{{ url_for('tags_page') }}">Browse Tags</a>
+            </li>
+            {# *** NEW LINK *** #}
+            <li>
+                <a href="{{ url_for('random_options_page') }}">Random PDF</a>
+            </li>
+            {# *** END NEW LINK *** #}
+        </ul>
+    </nav>
+    
+
+    <div class="main-content" id="main-content">
+        <h1>My PDF Collection</h1>
+
+        <div class="search-container">
+            <form method="GET" action="{{ url_for('index') }}">
+                <input type="hidden" name="page" value="1">
+                <input type="hidden" name="folder" value="{{ folder_filter or '' }}">
+                {# ** NEW: Hidden input for tag filter ** #}
+                <input type="hidden" name="tag" value="{{ tag_filter or '' }}">
+                <input type="text" name="q" placeholder="Search PDF filenames..." value="{{ search_query }}">
+                <button type="submit">Search</button>
+            </form>
+        </div>
+
+        <div class="active-filters">
+            {% if tag_filter %}
+                Filtering by Tag: <span>{{ tag_filter }}</span>
+                {# ** NEW: Clear tag filter link ** #}
+                <a href="{{ url_for('index', q=search_query, folder=folder_filter) }}" title="Clear Tag Filter">Clear</a>
+            {% endif %}
+        </div>
+
+        <div class="pdf-grid">
+            {% if pdfs %}
+                {% for pdf in pdfs %}
+                <div class="pdf-item">
+                    {# Main link now separate from tags #}
+                    <a href="{{ pdf.view_url }}" class="pdf-link">
+                        {% if pdf.thumbnail_rel_path %}
+                            <img src="{{ url_for('static', filename=pdf.thumbnail_rel_path) }}" alt="Cover of {{ pdf.filename }}">
+                        {% else %}
+                            <div class="placeholder-thumb">No Thumbnail</div>
+                        {% endif %}
+                        <span class="filename">{{ pdf.filename }}</span>
+                    </a>
+                    {# --- NEW: Display Tags --- #}
+                    {% if pdf.tags %}
+                    <div class="pdf-tags">
+                        {% for tag in pdf.tags %}
+                            {# Link to filter by this tag, preserving other filters #}
+                            <a href="{{ url_for('index', tag=tag, q=search_query, folder=folder_filter) }}" class="tag-link">
+                                {{ tag }}
+                            </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {# --- End Display Tags --- #}
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="empty-message">
+                     {% if tag_filter %}
+                        No PDFs found matching tag '{{ tag_filter }}' {% if search_query %}and search '{{ search_query }}'{% endif %} {% if folder_filter %} in the selected folder{% endif %}.
+                     {% elif search_query %}
+                        No PDFs found matching your search '{{ search_query }}' {% if folder_filter %} in the selected folder{% endif %}.
+                    {% elif folder_filter %}
+                        No PDFs found in the selected folder. Background scan may be in progress.
+                    {% elif page > 1 %}
+                        No more PDF files found for this page.
+                    {% else %}
+                        No PDF files found yet, or background scan in progress. Refresh to check again.
+                    {% endif %}
+                </p>
+            {% endif %}
+        </div>
+
+        {% if total_pages > 1 %}
+            <div class="pagination">
+                {% if page > 1 %}
+                    {# ** UPDATED: Added tag=tag_filter ** #}
+                    <a href="{{ url_for('index', page=page-1, q=search_query, folder=folder_filter, tag=tag_filter) }}">Previous</a>
+                {% else %}
+                    <span class="disabled">Previous</span>
+                {% endif %}
+
+                <span class="current-page">{{ page }}</span>
+                <span> of {{ total_pages }}</span>
+
+                {% if page < total_pages %}
+                    {# ** UPDATED: Added tag=tag_filter ** #}
+                    <a href="{{ url_for('index', page=page+1, q=search_query, folder=folder_filter, tag=tag_filter) }}">Next</a>
+                {% else %}
+                    <span class="disabled">Next</span>
+                {% endif %}
+            </div>
+        {% endif %}
+
+    </div> <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleBtn = document.getElementById('menu-toggle-btn');
+            const sidemenu = document.getElementById('sidemenu');
+            const body = document.body; // Easier to target body directly
+            const storageKey = 'sidemenuCollapsed';
+            function setMenuState(isCollapsed) {
+                if (isCollapsed) { sidemenu.classList.add('collapsed'); body.classList.add('sidemenu-collapsed'); }
+                else { sidemenu.classList.remove('collapsed'); body.classList.remove('sidemenu-collapsed'); }
+            }
+            const isCollapsed = localStorage.getItem(storageKey) === 'true';
+            setMenuState(isCollapsed);
+            toggleBtn.addEventListener('click', function() {
+                const currentlyCollapsed = sidemenu.classList.contains('collapsed');
+                setMenuState(!currentlyCollapsed);
+                localStorage.setItem(storageKey, !currentlyCollapsed);
+            });
+        });
+    </script>
+
+</body>
+</html>
