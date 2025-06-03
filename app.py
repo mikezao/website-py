@@ -12,8 +12,8 @@ import random
 # --- Configuration & Validation ---
 # IMPORTANT: PDF_FOLDERS MUST point to the ORIGINAL locations
 PDF_FOLDERS = [
-    '/media/disco12tb/to sort/30-05-25/h/pdfsseparated/pdfs/long',  # CHANGE ME - Path for source_0
-    '/media/disco12tb/to sort/30-05-25/h/pdfsseparated/pdfs/short' # CHANGE ME - Path for source_1
+    'pdfs/long',  # CHANGE ME - Path for source_0
+    'pdfs/short' # CHANGE ME - Path for source_1
 ]
 # --- PDF_FOLDERS validation logic (keep as before) ---
 valid_folders = []
@@ -461,4 +461,4 @@ if __name__ == '__main__':
     print(f"Thumbnails per page: {PER_PAGE}")
     print(f"Access the website at: http://127.0.0.1:5000")
     # Use debug=False in production, True for development
-    app.run(host='127.0.0.1', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
