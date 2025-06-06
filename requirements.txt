@@ -1,5 +1,5 @@
 Flask
-PyMuPDFpip
+PyMuPDF
 Flask-Login 
 pyotp 
 qrcode 

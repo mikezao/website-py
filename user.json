@@ -1,7 +1,0 @@
-{
-    "admin": {
-        "password_hash": "pbkdf2:sha256:600000$Z1z9wV8a8g1Nl2eB$865b43c5b5f8386e80b85ac5e0b6167123d45366c8d45142f1f008800164e29b",
-        "otp_secret": null,
-        "otp_enabled": false
-    }
-}
