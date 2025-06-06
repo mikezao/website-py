@@ -7,6 +7,8 @@ Okay, I understand what you're asking for. While I, as an AI, cannot directly bu
 
 Here's a breakdown of how you could build this website:
 
+
+
 Core Concepts & Challenges:
 
     Server-Side Requirement: Web browsers, for security reasons, cannot directly access arbitrary local folders on your computer. Therefore, this website must have a server-side component (a backend) running on a machine that can access the specified folder.
