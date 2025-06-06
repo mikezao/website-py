@@ -9,6 +9,23 @@ import json
 from flask import Flask, render_template, send_from_directory, send_file, url_for, abort, request, redirect
 import random
 
+import os
+import fitz  # PyMuPDF
+import math
+import threading
+import time
+import json
+import random
+
+# New imports for login and 2FA
+import io
+import base64
+import pyotp
+import qrcode
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask import Flask, render_template, send_file, url_for, abort, request, redirect, session, flash
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+
 # --- Configuration & Validation ---
 # IMPORTANT: PDF_FOLDERS MUST point to the ORIGINAL locations
 PDF_FOLDERS = [
@@ -43,6 +60,7 @@ TAG_FILE_PATH = os.path.join(BASE_DIR, 'tags.json')
 # --- Flask App Initialization ---
 app = Flask(__name__)
 
+app.config['SECRET_KEY'] = 'a-super-secret-key-that-you-should-change'
 # --- Threading Lock ---
 is_syncing_lock = threading.Lock()
 
@@ -79,6 +97,46 @@ def generate_thumbnail(pdf_src_path, thumb_dest_path):
             try: os.remove(thumb_dest_path)
             except: pass
         return False
+
+
+# --- Flask-Login and User Management ---
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login' # Redirect to /login if user is not authenticated
+
+class User(UserMixin):
+    def __init__(self, username, password_hash, otp_secret=None, otp_enabled=False):
+        self.id = username
+        self.password_hash = password_hash
+        self.otp_secret = otp_secret
+        self.otp_enabled = otp_enabled
+
+def load_users():
+    if not os.path.exists(USER_FILE_PATH):
+        return {}
+    with open(USER_FILE_PATH, 'r') as f:
+        return json.load(f)
+
+def save_users(users):
+    with open(USER_FILE_PATH, 'w') as f:
+        json.dump(users, f, indent=4)
+
+def get_user_by_username(username):
+    users = load_users()
+    user_data = users.get(username)
+    if user_data:
+        return User(
+            username,
+            user_data.get('password_hash'),
+            user_data.get('otp_secret'),
+            user_data.get('otp_enabled', False)
+        )
+    return None
+
+@login_manager.user_loader
+def load_user(user_id):
+    return get_user_by_username(user_id)
+
 
 
 # MODIFIED: sync_pdfs - No longer copies PDFs, only generates thumbnails and cleans them up
@@ -441,10 +499,106 @@ def view_pdf(folder_id, filename):
         abort(500, description="Server error while trying to serve the PDF file.")
 
 
-# REMOVED: The '/pdfs/...' route is no longer needed as /view/... serves directly
-# @app.route('/pdfs/<folder_id>/<path:filename>')
-# def serve_pdf(folder_id, filename):
-#     # ... (This function is deleted) ...
+# --- Authentication Routes ---
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        user = get_user_by_username(username)
+
+        if user and check_password_hash(user.password_hash, password):
+            if user.otp_enabled:
+                # If 2FA is enabled, don't log in yet.
+                # Store user ID in session and redirect to 2FA verification page.
+                session['2fa_user_id'] = user.id
+                return redirect(url_for('verify_2fa'))
+            else:
+                # If 2FA is not enabled, log in directly.
+                login_user(user)
+                flash('Logged in successfully.', 'success')
+                return redirect(url_for('index'))
+        else:
+            flash('Invalid username or password.', 'danger')
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('You have been logged out.', 'success')
+    return redirect(url_for('login'))
+
+@app.route('/verify-2fa', methods=['GET', 'POST'])
+def verify_2fa():
+    user_id = session.get('2fa_user_id')
+    if not user_id:
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        user = get_user_by_username(user_id)
+        otp = request.form.get('otp')
+        totp = pyotp.TOTP(user.otp_secret)
+
+        if totp.verify(otp):
+            # OTP is correct, log the user in
+            session.pop('2fa_user_id', None) # Clean up session
+            login_user(user)
+            flash('Logged in successfully.', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Invalid 2FA code.', 'danger')
+
+    return render_template('verify_2fa.html')
+
+@app.route('/setup-2fa', methods=['GET', 'POST'])
+@login_required
+def setup_2fa():
+    if current_user.otp_enabled:
+        return render_template('setup_2fa.html')
+
+    if 'otp_secret' not in session:
+        session['otp_secret'] = pyotp.random_base32()
+
+    secret = session['otp_secret']
+    otp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
+        name=current_user.id,
+        issuer_name="My PDF App"
+    )
+
+    if request.method == 'POST':
+        otp = request.form.get('otp')
+        totp = pyotp.TOTP(secret)
+
+        if totp.verify(otp):
+            # OTP is correct, save the secret to the user file
+            users = load_users()
+            users[current_user.id]['otp_secret'] = secret
+            users[current_user.id]['otp_enabled'] = True
+            save_users(users)
+            
+            session.pop('otp_secret', None) # Clean up session
+            flash('2FA enabled successfully!', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Invalid verification code.', 'danger')
+
+    # Generate QR code image in memory
+    img = qrcode.make(otp_uri)
+    buf = io.BytesIO()
+    img.save(buf)
+    buf.seek(0)
+    qr_code_image = base64.b64encode(buf.getvalue()).decode('ascii')
+
+    return render_template('setup_2fa.html', qr_code_image=qr_code_image)
+
+
+# --- Protected Application Routes ---
+
+
 
 
 # --- Run the App ---

@@ -1,2 +1,7 @@
 Flask
-PyMuPDF
+PyMuPDFpip
+Flask-Login 
+pyotp 
+qrcode 
+Pillow
+
