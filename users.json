@@ -1,7 +1,7 @@
 {
     "mike": {
         "password_hash": "scrypt:32768:8:1$SmqmI44TXC3063fs$6d67a9f5877300f78d7ec7dce5e680482066f7f35361056abe089004d1997f804865e2b3b6f2feed0b628d8b7c83b3def953e3640cb8711391307edc5e57615a",
-        "otp_secret": null,
-        "otp_enabled": false
+        "otp_secret": "SMPOZB6LNLERJQAQWTW2VBNJDBIYZJDD",
+        "otp_enabled": true
     }
 }
